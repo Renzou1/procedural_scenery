@@ -314,9 +314,9 @@ async function main() {
   }));
   const materials = parseMTL(matTexts.join('\n'));
 
-  const textures = {
-    defaultWhite: twgl.createTexture(gl, {src: [255, 255, 255, 255]}),
-  };
+  //const textures = {
+  //  defaultWhite: twgl.createTexture(gl, {src: [255, 255, 255, 255]}),
+  //};
 
   // load texture for materials
   for (const material of Object.values(materials)) {
@@ -380,6 +380,30 @@ async function main() {
     };
   });
 
+  var textures = [
+    textureUtils.makeStripeTexture(gl, { color1: "#FFF", color2: "#CCC", }),
+    textureUtils.makeCheckerTexture(gl, { color1: "#FFF", color2: "#CCC", }),
+    textureUtils.makeCircleTexture(gl, { color1: "#FFF", color2: "#CCC", }),
+  ];
+
+  var objects = [];
+  var numObjects = 3;
+  var baseColor = rand(240);
+  for (var ii = 0; ii < numObjects; ++ii) {
+    objects.push({
+      radius: rand(150),
+      xRotation: rand(Math.PI * 2),
+      yRotation: rand(Math.PI),
+      materialUniforms: {
+        u_colorMult:             chroma.hsv(rand(baseColor, baseColor + 120), 0.5, 1).gl(),
+        u_diffuse:               textures[randInt(textures.length)],
+        u_specular:              [1, 1, 1, 1],
+        u_shininess:             rand(500),
+        u_specularFactor:        rand(1),
+      },
+    });
+  }
+
   function getExtents(positions) {
     const min = positions.slice(0, 3);
     const max = positions.slice(0, 3);
@@ -408,21 +432,11 @@ async function main() {
 
   const extents = getGeometriesExtents(obj.geometries);
   const range = m4.subtractVectors(extents.max, extents.min);
-  // amount to move the object so its center is at the origin
-  const objOffset = m4.scaleVector(
-      m4.addVectors(
-        extents.min,
-        m4.scaleVector(range, 0.5)),
-      -1);
-  const cameraTarget = [0, 0, 0];
+
   // figure out how far away to move the camera so we can likely
   // see the object.
   const radius = m4.length(range) * 1.2;
-  let cameraPosition = m4.addVectors(cameraTarget, [
-    0,
-    2,
-    radius,
-  ]);
+
   // Set zNear and zFar to something hopefully appropriate
   // for the size of this object.
   const zNear = radius / 100;
@@ -440,20 +454,21 @@ async function main() {
     gl.enable(gl.DEPTH_TEST);
 
     const fieldOfViewRadians = degToRad(60);
-    const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    const projection = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
+    // Compute the projection matrix
+    var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+    var projectionMatrix =
+        m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
 
-    const up = [0, 1, 0];
-
-    //const camera = m4.lookAt(cameraPosition, cameraTarget, up);
-
-    let camera = m4.yRotation(1 * time);
-    camera = m4.translate(camera, 0, 0, radius * 1.5);
+    // Compute the camera's matrix using look at.
+    var cameraPosition = [0, 0, 100];
+    var target = [0, 0, 0];
+    var up = [0, 1, 0];
+    var cameraMatrix = m4.lookAt(cameraPosition, target, up, uniformsThatAreTheSameForAllObjects.u_viewInverse);
 
     // Make a view matrix from the camera matrix.
-    const view = m4.inverse(camera);
+    var viewMatrix = m4.inverse(cameraMatrix);
 
-    //var viewProjectionMatrix = m4.multiplty(projection, view);
+    var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
     const sharedUniforms = {
       u_lightDirection: m4.normalize([-1, 3, 5]),
@@ -467,22 +482,29 @@ async function main() {
     // calls gl.uniform
     twgl.setUniforms(meshProgramInfo, sharedUniforms);
 
-    // compute the world matrix once since all parts
-    // are at the same space.
-    let u_world = m4.yRotation(0)
-    //let u_world = m4.yRotation(time * 0.25); // hacky? camera should move
-    //u_world = m4.translate(u_world, ...objOffset);
+    // Draw objects
+    objects.forEach(function(object) {
 
-    for (const {bufferInfo, vao, material} of parts) {
-      // set the attributes for this part.
-      gl.bindVertexArray(vao);
-      // calls gl.uniform
-      twgl.setUniforms(meshProgramInfo, {
-        u_world,
-      }, material);
-      // calls gl.drawArrays or gl.drawElements
-      twgl.drawBufferInfo(gl, bufferInfo);
-    }
+      // Compute a position for this object based on the time.
+      var worldMatrix = m4.identity();
+      worldMatrix = m4.yRotate(worldMatrix, object.yRotation * time);
+      worldMatrix = m4.xRotate(worldMatrix, object.xRotation * time);
+      worldMatrix = m4.translate(worldMatrix, 0, 0, object.radius,
+         uniformsThatAreComputedForEachObject.u_world);
+
+      // Multiply the matrices.
+      m4.multiply(viewProjectionMatrix, worldMatrix, uniformsThatAreComputedForEachObject.u_worldViewProjection);
+      m4.transpose(m4.inverse(worldMatrix), uniformsThatAreComputedForEachObject.u_worldInverseTranspose);
+
+      // Set the uniforms we just computed
+      twgl.setUniforms(uniformSetters, uniformsThatAreComputedForEachObject);
+
+      // Set the uniforms that are specific to the this object.
+      twgl.setUniforms(uniformSetters, object.materialUniforms);
+
+      // Draw the geometry.
+      gl.drawElements(gl.TRIANGLES, buffers.numElements, gl.UNSIGNED_SHORT, 0);
+    });
 
     requestAnimationFrame(render);
   }
