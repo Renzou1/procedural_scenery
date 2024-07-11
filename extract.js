@@ -259,7 +259,6 @@ async function getObjInfo(objString, gl, programInfo) {
     shininess: 400,
     opacity: 1,
   };
-  window.alert(m);
   const objInfo = obj.geometries.map(({material, data}) => {
     // Because data is just named arrays like this
     //
