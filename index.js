@@ -1,4 +1,4 @@
-function main() {
+async function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
   var canvas = document.querySelector("#canvas");
@@ -6,17 +6,18 @@ function main() {
   if (!gl) {
     return;
   }
-
+  // setup GLSL program
+  var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+  
   // Tell the twgl to match position with a_position, n
   // normal with a_normal etc..
   twgl.setAttributePrefix("a_");
 
+  var waterInfo = await getObjInfo("hex_water.obj", gl, programInfo);
+  //window.alert(waterInfo.vao);
   var sphereBufferInfo = flattenedPrimitives.createSphereBufferInfo(gl, 10, 12, 6);
   var cubeBufferInfo   = flattenedPrimitives.createCubeBufferInfo(gl, 20);
   var coneBufferInfo   = flattenedPrimitives.createTruncatedConeBufferInfo(gl, 10, 0, 20, 12, 1, true, false);
-
-  // setup GLSL program
-  var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 
   var sphereVAO = twgl.createVAOFromBufferInfo(gl, programInfo, sphereBufferInfo);
   var cubeVAO   = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
@@ -41,9 +42,23 @@ function main() {
     u_colorMult: [0.5, 0.5, 1, 1],
     u_matrix: m4.identity(),
   };
+  var waterUniforms = {
+    // continue
+    u_matrix: m4.identity(),
+  }
   var sphereTranslation = [  0, 0, 0];
   var cubeTranslation   = [-40, 0, 0];
   var coneTranslation   = [ 40, 0, 0];
+  var waterTranslation  = [ 40, 0, 0];
+
+  var sphereXRotation = 0;
+  var sphereYRotation = 0;
+  var cubeXRotation   = 0;
+  var cubeYRotation   = 0;
+  var coneXRotation   = 0;
+  var coneYRotation   = 0;
+  var waterXRotation  = 0;
+  var waterYRotation  = 0;
 
   function computeMatrix(viewProjectionMatrix, translation, xRotation, yRotation) {
     var matrix = m4.translate(viewProjectionMatrix,
@@ -84,63 +99,35 @@ function main() {
 
     var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
-    var sphereXRotation =  time;
-    var sphereYRotation =  time;
-    var cubeXRotation   = -time;
-    var cubeYRotation   =  time;
-    var coneXRotation   =  time;
-    var coneYRotation   = -time;
-
     gl.useProgram(programInfo.program);
 
-    // ------ Draw the sphere --------
+    // declare all uniforms that are shared by all objects
+    const sharedUniforms = {
+      u_lightDirection: m4.normalize([-1, 3, 5]),
+      u_view: view,
+      u_projection: projection,
+      u_viewWorldPosition: cameraPosition,
+    };
+    // set them internally
+    twgl.setUniforms(programInfo, sharedUniforms);
+
+    // ------ Repeat for all objects --------
 
     // Setup all the needed attributes.
-    gl.bindVertexArray(sphereVAO);
+    gl.bindVertexArray(waterInfo.vao);
 
-    sphereUniforms.u_matrix = computeMatrix(
+    waterUniforms.u_matrix = computeMatrix(
         viewProjectionMatrix,
-        sphereTranslation,
-        sphereXRotation,
-        sphereYRotation);
+        waterTranslation,
+        waterXRotation,
+        waterYRotation);
 
     // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, sphereUniforms);
+    twgl.setUniforms(programInfo, waterUniforms);
 
-    twgl.drawBufferInfo(gl, sphereBufferInfo);
+    twgl.drawBufferInfo(gl, waterInfo.bufferInfo);
 
-    // ------ Draw the cube --------
-
-    // Setup all the needed attributes.
-    gl.bindVertexArray(cubeVAO);
-
-    cubeUniforms.u_matrix = computeMatrix(
-        viewProjectionMatrix,
-        cubeTranslation,
-        cubeXRotation,
-        cubeYRotation);
-
-    // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, cubeUniforms);
-
-    twgl.drawBufferInfo(gl, cubeBufferInfo);
-
-    // ------ Draw the cone --------
-
-    // Setup all the needed attributes.
-    gl.bindVertexArray(coneVAO);
-
-    coneUniforms.u_matrix = computeMatrix(
-        viewProjectionMatrix,
-        coneTranslation,
-        coneXRotation,
-        coneYRotation);
-
-    // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, coneUniforms);
-
-    twgl.drawBufferInfo(gl, coneBufferInfo);
-
+    // when done
     requestAnimationFrame(drawScene);
   }
 }
