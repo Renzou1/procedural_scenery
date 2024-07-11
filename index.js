@@ -38,10 +38,10 @@ async function main() {
       cameraPosition[0] += 0.2;
     }
     if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") {
-      cameraPosition[2] += 0.2;
+      cameraPosition[1] -= 0.2;
     }
     if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") {
-      cameraPosition[2] -= 0.2; 
+      cameraPosition[1] += 0.2; 
     }
 
     if (event.key === " ") {
