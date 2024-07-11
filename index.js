@@ -1,4 +1,4 @@
-function main() {
+async function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
   var canvas = document.querySelector("#canvas");
@@ -6,17 +6,17 @@ function main() {
   if (!gl) {
     return;
   }
-
+  // setup GLSL program
+  var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+  
   // Tell the twgl to match position with a_position, n
   // normal with a_normal etc..
   twgl.setAttributePrefix("a_");
 
+  var waterInfo = await getObjInfo("hex_water.obj", gl, programInfo);
   var sphereBufferInfo = flattenedPrimitives.createSphereBufferInfo(gl, 10, 12, 6);
   var cubeBufferInfo   = flattenedPrimitives.createCubeBufferInfo(gl, 20);
   var coneBufferInfo   = flattenedPrimitives.createTruncatedConeBufferInfo(gl, 10, 0, 20, 12, 1, true, false);
-
-  // setup GLSL program
-  var programInfo = twgl.createProgramInfo(gl, [vs, fs]);
 
   var sphereVAO = twgl.createVAOFromBufferInfo(gl, programInfo, sphereBufferInfo);
   var cubeVAO   = twgl.createVAOFromBufferInfo(gl, programInfo, cubeBufferInfo);
@@ -41,9 +41,22 @@ function main() {
     u_colorMult: [0.5, 0.5, 1, 1],
     u_matrix: m4.identity(),
   };
+  var waterUniforms = {
+    u_matrix: m4.identity(),
+  }
   var sphereTranslation = [  0, 0, 0];
   var cubeTranslation   = [-40, 0, 0];
   var coneTranslation   = [ 40, 0, 0];
+  var waterTranslation  = [ 0, 0, 0];
+
+  var sphereXRotation = 0;
+  var sphereYRotation = 0;
+  var cubeXRotation   = 0;
+  var cubeYRotation   = 0;
+  var coneXRotation   = 0;
+  var coneYRotation   = 0;
+  var waterXRotation  = 0;
+  var waterYRotation  = 0;
 
   function computeMatrix(viewProjectionMatrix, translation, xRotation, yRotation) {
     var matrix = m4.translate(viewProjectionMatrix,
@@ -59,7 +72,7 @@ function main() {
   // Draw the scene.
   function drawScene(time) {
     time = time * 0.001;
-
+    waterYRotation = time;
     twgl.resizeCanvasToDisplaySize(gl.canvas);
 
     // Tell WebGL how to convert from clip space to pixels
@@ -74,7 +87,7 @@ function main() {
         m4.perspective(fieldOfViewRadians, aspect, 1, 2000);
 
     // Compute the camera's matrix using look at.
-    var cameraPosition = [0, 0, 100];
+    var cameraPosition = [0, 0, 3];
     var target = [0, 0, 0];
     var up = [0, 1, 0];
     var cameraMatrix = m4.lookAt(cameraPosition, target, up);
@@ -84,63 +97,40 @@ function main() {
 
     var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
-    var sphereXRotation =  time;
-    var sphereYRotation =  time;
-    var cubeXRotation   = -time;
-    var cubeYRotation   =  time;
-    var coneXRotation   =  time;
-    var coneYRotation   = -time;
-
     gl.useProgram(programInfo.program);
+    // declare all uniforms that are shared by all objects
+    const sharedUniforms = {
+      u_lightDirection: m4.normalize([-1, 3, 5]),
+      u_view: viewMatrix,
+      u_projection: projectionMatrix,
+      u_viewWorldPosition: cameraPosition,
+    };
+    // set them internally
+    twgl.setUniforms(programInfo, sharedUniforms);
+    // ------ Repeat for all objects --------
 
-    // ------ Draw the sphere --------
+    let u_world = m4.yRotation(0);
+    waterUniforms.u_matrix = computeMatrix(
+      viewProjectionMatrix,
+      waterTranslation,
+      waterXRotation,
+      waterYRotation);
 
-    // Setup all the needed attributes.
-    gl.bindVertexArray(sphereVAO);
-
-    sphereUniforms.u_matrix = computeMatrix(
-        viewProjectionMatrix,
-        sphereTranslation,
-        sphereXRotation,
-        sphereYRotation);
-
-    // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, sphereUniforms);
-
-    twgl.drawBufferInfo(gl, sphereBufferInfo);
-
-    // ------ Draw the cube --------
-
-    // Setup all the needed attributes.
-    gl.bindVertexArray(cubeVAO);
-
-    cubeUniforms.u_matrix = computeMatrix(
-        viewProjectionMatrix,
-        cubeTranslation,
-        cubeXRotation,
-        cubeYRotation);
-
-    // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, cubeUniforms);
-
-    twgl.drawBufferInfo(gl, cubeBufferInfo);
-
-    // ------ Draw the cone --------
-
-    // Setup all the needed attributes.
-    gl.bindVertexArray(coneVAO);
-
-    coneUniforms.u_matrix = computeMatrix(
-        viewProjectionMatrix,
-        coneTranslation,
-        coneXRotation,
-        coneYRotation);
+    for (const {bufferInfo, vao, material} of waterInfo) {
+      // set the attributes for this part.
+      gl.bindVertexArray(vao);
+      // calls gl.uniform
+      twgl.setUniforms(programInfo, {
+        u_world,
+      }, material);
+      // calls gl.drawArrays or gl.drawElements
+      twgl.drawBufferInfo(gl, bufferInfo);
+    }
 
     // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, coneUniforms);
+    twgl.setUniforms(programInfo, waterUniforms);
 
-    twgl.drawBufferInfo(gl, coneBufferInfo);
-
+    // when done
     requestAnimationFrame(drawScene);
   }
 }
