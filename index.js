@@ -447,7 +447,7 @@ async function main() {
 
     //const camera = m4.lookAt(cameraPosition, cameraTarget, up);
 
-    let camera = m4.yRotation(1 * time);
+    let camera = m4.yRotation(0.25 * time);
     camera = m4.translate(camera, 0, 0, radius * 1.5);
 
     // Make a view matrix from the camera matrix.
@@ -469,7 +469,7 @@ async function main() {
 
     // compute the world matrix once since all parts
     // are at the same space.
-    let u_world = m4.yRotation(0)
+    let u_world = m4.yRotation(0);
     //let u_world = m4.yRotation(time * 0.25); // hacky? camera should move
     //u_world = m4.translate(u_world, ...objOffset);
 
