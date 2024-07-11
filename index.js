@@ -314,9 +314,9 @@ async function main() {
   }));
   const materials = parseMTL(matTexts.join('\n'));
 
-  //const textures = {
-  //  defaultWhite: twgl.createTexture(gl, {src: [255, 255, 255, 255]}),
-  //};
+  const textures = {
+    defaultWhite: twgl.createTexture(gl, {src: [255, 255, 255, 255]}),
+  };
 
   // load texture for materials
   for (const material of Object.values(materials)) {
@@ -379,30 +379,6 @@ async function main() {
       vao,
     };
   });
-
-  var textures = [
-    textureUtils.makeStripeTexture(gl, { color1: "#FFF", color2: "#CCC", }),
-    textureUtils.makeCheckerTexture(gl, { color1: "#FFF", color2: "#CCC", }),
-    textureUtils.makeCircleTexture(gl, { color1: "#FFF", color2: "#CCC", }),
-  ];
-
-  var objects = [];
-  var numObjects = 3;
-  var baseColor = rand(240);
-  for (var ii = 0; ii < numObjects; ++ii) {
-    objects.push({
-      radius: rand(150),
-      xRotation: rand(Math.PI * 2),
-      yRotation: rand(Math.PI),
-      materialUniforms: {
-        u_colorMult:             chroma.hsv(rand(baseColor, baseColor + 120), 0.5, 1).gl(),
-        u_diffuse:               textures[randInt(textures.length)],
-        u_specular:              [1, 1, 1, 1],
-        u_shininess:             rand(500),
-        u_specularFactor:        rand(1),
-      },
-    });
-  }
 
   function getExtents(positions) {
     const min = positions.slice(0, 3);
@@ -468,14 +444,7 @@ async function main() {
     // Make a view matrix from the camera matrix.
     var viewMatrix = m4.inverse(cameraMatrix);
 
-    var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
-
-    const sharedUniforms = {
-      u_lightDirection: m4.normalize([-1, 3, 5]),
-      u_view: view,
-      u_projection: projection,
-      u_viewWorldPosition: cameraPosition,
-    };
+    //var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix); maybe already done inside shaders
 
     gl.useProgram(meshProgramInfo.program);
 
@@ -485,25 +454,7 @@ async function main() {
     // Draw objects
     objects.forEach(function(object) {
 
-      // Compute a position for this object based on the time.
-      var worldMatrix = m4.identity();
-      worldMatrix = m4.yRotate(worldMatrix, object.yRotation * time);
-      worldMatrix = m4.xRotate(worldMatrix, object.xRotation * time);
-      worldMatrix = m4.translate(worldMatrix, 0, 0, object.radius,
-         uniformsThatAreComputedForEachObject.u_world);
-
-      // Multiply the matrices.
-      m4.multiply(viewProjectionMatrix, worldMatrix, uniformsThatAreComputedForEachObject.u_worldViewProjection);
-      m4.transpose(m4.inverse(worldMatrix), uniformsThatAreComputedForEachObject.u_worldInverseTranspose);
-
-      // Set the uniforms we just computed
-      twgl.setUniforms(uniformSetters, uniformsThatAreComputedForEachObject);
-
-      // Set the uniforms that are specific to the this object.
-      twgl.setUniforms(uniformSetters, object.materialUniforms);
-
-      // Draw the geometry.
-      gl.drawElements(gl.TRIANGLES, buffers.numElements, gl.UNSIGNED_SHORT, 0);
+    
     });
 
     requestAnimationFrame(render);
