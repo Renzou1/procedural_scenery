@@ -42,9 +42,10 @@ async function main() {
   let homeBInfo = await getObjInfo("building_home_B_blue.obj", gl, programInfo);
   let marketInfo = await getObjInfo("building_market_blue.obj", gl, programInfo);
   let tavernInfo = await getObjInfo("building_tavern_blue.obj", gl, programInfo);
+  let mineInfo = await getObjInfo("building_mine_blue.obj", gl, programInfo);
 
   floorOptions = [waterInfo, grassInfo];
-  buildingsOptions = [archeryInfo, barracksInfo, homeAInfo, homeBInfo, marketInfo, tavernInfo];
+  buildingsOptions = [archeryInfo, barracksInfo, homeAInfo, homeBInfo, marketInfo, tavernInfo, mineInfo];
 
   function degToRad(d) {
     return d * Math.PI / 180;
