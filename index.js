@@ -96,7 +96,6 @@ async function main() {
   });
   
   document.querySelector("#numberOfRows").addEventListener("change", (e) => {
-    //window.alert(0);
    nextNumberOfRows = parseInt(e.target.value);
   });
   
