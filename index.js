@@ -9,6 +9,7 @@ let tavernIndex = 5;
 
 let numberOfRows = 10;
 let numberOfCols = 10;
+let buildingsChance = 0.5;
 
 let floor_matrix;
 let buildings_matrix;
@@ -56,8 +57,10 @@ async function main() {
     u_matrix: m4.identity(),
   }
 
-  let cameraPosition = [0, 2, 3];
-  let target = [10, 2, 0];
+  let cameraPosition = [0, 7, numberOfRows * 2.5];
+  let target = [numberOfCols, 2, 0];
+  let nextNumberOfRows = numberOfRows;
+  let nextNumberOfCols = numberOfCols;
   window.addEventListener("keydown", event => {
     if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
       cameraPosition[0] -= 0.2;
@@ -83,17 +86,82 @@ async function main() {
     const delta = Math.sign(event.deltaY);
     cameraPosition[2] += delta/5;
   });
+  document.querySelector("#randomize").addEventListener("click", () => {
+    numberOfRows = nextNumberOfRows;
+    numberOfCols = nextNumberOfCols;
+    generateNewWorld();
+    cameraPosition = [0, 7, numberOfRows * 2.5];
+    target = [numberOfCols, 2, 0];
+  });
+  
+  document.querySelector("#numberOfRows").addEventListener("change", (e) => {
+    //window.alert(0);
+   nextNumberOfRows = parseInt(e.target.value);
+  });
+  
+  document.querySelector("#numberOfCols").addEventListener("change", (e) => {
+    nextNumberOfCols = parseInt(e.target.value);
+  });
 
-  function computeMatrix(viewProjectionMatrix, translation, xRotation, yRotation) {
-    var matrix = m4.translate(viewProjectionMatrix,
-        translation[0],
-        translation[1],
-        translation[2]);
-    matrix = m4.xRotate(matrix, xRotation);
-    return m4.yRotate(matrix, yRotation);
+  document.querySelector("#buildingsChance").addEventListener("change", (e) => {
+    buildingsChance = parseInt(e.target.value)/100;
+  });
+
+  function surroundedBy(i, j, index) {
+
+    if (i + 1 < numberOfRows) {
+      if (floor_matrix[i + 1][j] != index) {
+          return false;
+      }
   }
 
+  if (i - 1 >= 0) {
+      if (floor_matrix[i - 1][j] != index) {
+          return false;
+      }
+  }
+
+  if (j + 1 < numberOfCols) {
+      if (floor_matrix[i][j + 1] != index) {
+          return false;
+      }
+  }
+
+  if (j - 1 >= 0) {
+      if (floor_matrix[i][j - 1] != index) {
+          return false;
+      }
+  }
+
+  if (i % 2 == 1) { // Offset of the odd grids
+      if (i - 1 >= 0 && j + 1 < numberOfCols) {
+          if (floor_matrix[i - 1][j + 1] != index) {
+              return false;
+          }
+      }
+      if (i + 1 < numberOfRows && j + 1 < numberOfCols) {
+          if (floor_matrix[i + 1][j + 1] != index) {
+              return false;
+          }
+      }
+  } else {
+      if (i - 1 >= 0 && j - 1 >= 0) {
+          if (floor_matrix[i - 1][j - 1] != index) {
+              return false;
+          }
+      }
+      if (i + 1 < numberOfRows && j - 1 >= 0) {
+          if (floor_matrix[i + 1][j - 1] != index) {
+              return false;
+          }
+      }
+  }
+
+  return true;
+}
+
   function generateNewWorld(){
+    
     floor_matrix = [];
     buildings_matrix = [];
     for (let i = 0; i < numberOfRows; i++) {
@@ -111,6 +179,28 @@ async function main() {
         floor_matrix[i][j] = Math.round(Math.random());
       }
     }
+
+    for( let i = 0; i < numberOfRows; i++)
+    {
+      for (let j = 0; j < numberOfCols; j++)
+      {
+        if(surroundedBy(i,j, waterIndex))
+        {
+          floor_matrix[i][j] = waterIndex;
+        }
+        if(surroundedBy(i,j, grassIndex))
+        {
+          floor_matrix[i][j] = grassIndex;
+        }
+        if(floor_matrix[i][j] == grassIndex && !surroundedBy(i, j, waterIndex))
+          {
+            if(Math.random() < buildingsChance)
+            {
+              buildings_matrix[i][j] = Math.round(Math.random() * (buildingsOptions.length - 1));
+            }
+          }
+      }
+    }
   }
 
   generateNewWorld(); 
@@ -118,7 +208,6 @@ async function main() {
 
   // Draw the scene.
   function drawScene(time) {
-    time = time * 0.001;
     twgl.resizeCanvasToDisplaySize(gl.canvas);
 
     // Tell WebGL how to convert from clip space to pixels
@@ -182,6 +271,33 @@ async function main() {
         twgl.drawBufferInfo(gl, bufferInfo);
       }
     }
+
+    // draws buildings
+    for(let i = 0; i < numberOfRows; i++)
+      {
+        let z = z_distance_between_hexagons * i;
+        for(let j = 0; j < numberOfCols; j++)
+        {
+          let currentIndex = buildings_matrix[i][j];
+          if (currentIndex == -1) continue;
+          let translation = [2 * j + (i % 2), 0, z];
+          let { bufferInfo, vao, material } = buildingsOptions[currentIndex];
+  
+          // Bind the VAO
+          gl.bindVertexArray(vao);
+          
+          // Set the uniforms
+          twgl.setUniforms(programInfo, {
+            u_world,
+          }, material);
+          
+  
+          currentUniforms.u_matrix = m4.translate(viewProjectionMatrix, ...translation);
+          twgl.setUniforms(programInfo, currentUniforms);
+          // Draw the geometry
+          twgl.drawBufferInfo(gl, bufferInfo);
+        }
+      }
 
     requestAnimationFrame(drawScene);
   }
