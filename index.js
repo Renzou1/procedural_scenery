@@ -34,15 +34,15 @@ async function main() {
   // normal with a_normal etc..
   twgl.setAttributePrefix("a_");
 
-  let waterInfo = await getObjInfo("hex_water.obj", gl, programInfo);
-  let grassInfo = await getObjInfo("hex_grass.obj", gl, programInfo);
-  let archeryInfo = await getObjInfo("building_church_blue.obj", gl, programInfo);
-  let barracksInfo = await getObjInfo("building_barracks_blue.obj", gl, programInfo);
-  let homeAInfo = await getObjInfo("building_home_A_blue.obj", gl, programInfo);
-  let homeBInfo = await getObjInfo("building_home_B_blue.obj", gl, programInfo);
-  let marketInfo = await getObjInfo("building_market_blue.obj", gl, programInfo);
-  let tavernInfo = await getObjInfo("building_tavern_blue.obj", gl, programInfo);
-  let mineInfo = await getObjInfo("building_mine_blue.obj", gl, programInfo);
+  let waterInfo = await getObjInfo("objects/hex_water.obj", gl, programInfo);
+  let grassInfo = await getObjInfo("objects/hex_grass.obj", gl, programInfo);
+  let archeryInfo = await getObjInfo("objects/building_church_blue.obj", gl, programInfo);
+  let barracksInfo = await getObjInfo("objects/building_barracks_blue.obj", gl, programInfo);
+  let homeAInfo = await getObjInfo("objects/building_home_A_blue.obj", gl, programInfo);
+  let homeBInfo = await getObjInfo("objects/building_home_B_blue.obj", gl, programInfo);
+  let marketInfo = await getObjInfo("objects/building_market_blue.obj", gl, programInfo);
+  let tavernInfo = await getObjInfo("objects/building_tavern_blue.obj", gl, programInfo);
+  let mineInfo = await getObjInfo("objects/building_mine_blue.obj", gl, programInfo);
 
   floorOptions = [waterInfo, grassInfo];
   buildingsOptions = [archeryInfo, barracksInfo, homeAInfo, homeBInfo, marketInfo, tavernInfo, mineInfo];
