@@ -1,3 +1,23 @@
+let waterIndex = 0;
+let grassIndex = 1;
+let archeryIndex = 0;
+let barracksIndex = 1;
+let homeAIndex = 2;
+let homeBIndex = 3;
+let marketIndex = 4;
+let tavernIndex = 5;
+
+let numberOfRows = 10;
+let numberOfCols = 10;
+
+let floor_matrix;
+let buildings_matrix;
+
+let floorOptions;
+let buildingsOptions;
+
+let z_distance_between_hexagons = 1.732; 
+
 async function main() {
   // Get A WebGL context
   /** @type {HTMLCanvasElement} */
@@ -13,7 +33,17 @@ async function main() {
   // normal with a_normal etc..
   twgl.setAttributePrefix("a_");
 
-  var waterInfo = await getObjInfo("hex_water.obj", gl, programInfo);
+  let waterInfo = await getObjInfo("hex_water.obj", gl, programInfo);
+  let grassInfo = await getObjInfo("hex_grass.obj", gl, programInfo);
+  let archeryInfo = await getObjInfo("building_church_blue.obj", gl, programInfo);
+  let barracksInfo = await getObjInfo("building_barracks_blue.obj", gl, programInfo);
+  let homeAInfo = await getObjInfo("building_home_A_blue.obj", gl, programInfo);
+  let homeBInfo = await getObjInfo("building_home_B_blue.obj", gl, programInfo);
+  let marketInfo = await getObjInfo("building_market_blue.obj", gl, programInfo);
+  let tavernInfo = await getObjInfo("building_tavern_blue.obj", gl, programInfo);
+
+  floorOptions = [waterInfo, grassInfo];
+  buildingsOptions = [archeryInfo, barracksInfo, homeAInfo, homeBInfo, marketInfo, tavernInfo];
 
   function degToRad(d) {
     return d * Math.PI / 180;
@@ -21,13 +51,11 @@ async function main() {
 
   var fieldOfViewRadians = degToRad(60);
 
-  // Uniforms for each object.
-  var waterUniforms = {
+  // Uniform for object position
+  var currentUniforms = {
     u_matrix: m4.identity(),
   }
 
-  var waterXRotation  = 0;
-  var waterYRotation  = 0;
   let cameraPosition = [0, 2, 3];
   let target = [10, 2, 0];
   window.addEventListener("keydown", event => {
@@ -65,6 +93,27 @@ async function main() {
     return m4.yRotate(matrix, yRotation);
   }
 
+  function generateNewWorld(){
+    floor_matrix = [];
+    buildings_matrix = [];
+    for (let i = 0; i < numberOfRows; i++) {
+        floor_matrix[i] = [];
+        buildings_matrix[i] = [];
+        for (let j = 0; j < numberOfCols; j++) {
+            buildings_matrix[i][j] = -1;
+        }
+    }
+
+    for (let i = 0; i < numberOfRows; i++)
+    {
+      for(let j = 0; j < numberOfCols; j++)
+      {
+        floor_matrix[i][j] = Math.round(Math.random());
+      }
+    }
+  }
+
+  generateNewWorld(); 
   requestAnimationFrame(drawScene);
 
   // Draw the scene.
@@ -93,6 +142,9 @@ async function main() {
     var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
     gl.useProgram(programInfo.program);
+
+    let u_world = m4.yRotation(0);
+
     // declare all uniforms that are shared by all objects
     const sharedUniforms = {
       u_lightDirection: m4.normalize([-1, 3, 5]),
@@ -100,55 +152,37 @@ async function main() {
       u_projection: projectionMatrix,
       u_viewWorldPosition: cameraPosition,
     };
+
+
     // set them internally
     twgl.setUniforms(programInfo, sharedUniforms);
 
-    // ------ Repeat for all objects --------
-
-    var waterTranslation  = [0, 0, 0];
-    waterYRotation = 0;
-    let u_world = m4.yRotation(0);
-    waterUniforms.u_matrix = m4.translate(viewProjectionMatrix, ...waterTranslation);
-
-    // Set the uniforms we just computed
-    twgl.setUniforms(programInfo, waterUniforms);
-
-    let { bufferInfo, vao, material } = waterInfo[0]; // make water Info be a singular element later
-
-    // Bind the VAO
-    gl.bindVertexArray(vao);
-    
-    // Set the uniforms
-    twgl.setUniforms(programInfo, {
-      u_world,
-    }, material);
-    
-    // Draw the geometry
-    twgl.drawBufferInfo(gl, bufferInfo);
-
-    let z_distance_between_hexagons = 1.732; 
-
-    for(let i = 0; i < 10; i++)
+    // draws floors
+    for(let i = 0; i < numberOfRows; i++)
     {
-      waterTranslation[0] += 2;
-      waterUniforms.u_matrix = waterUniforms.u_matrix = m4.translate(viewProjectionMatrix, ...waterTranslation);
-      twgl.setUniforms(programInfo, waterUniforms);
-      // Draw the geometry
-      twgl.drawBufferInfo(gl, bufferInfo);      
+      let z = z_distance_between_hexagons * i;
+      for(let j = 0; j < numberOfCols; j++)
+      {
+        let currentIndex = floor_matrix[i][j];
+        let translation = [2 * j + (i % 2), 0, z];
+        let { bufferInfo, vao, material } = floorOptions[currentIndex];
+
+        // Bind the VAO
+        gl.bindVertexArray(vao);
+        
+        // Set the uniforms
+        twgl.setUniforms(programInfo, {
+          u_world,
+        }, material);
+        
+
+        currentUniforms.u_matrix = m4.translate(viewProjectionMatrix, ...translation);
+        twgl.setUniforms(programInfo, currentUniforms);
+        // Draw the geometry
+        twgl.drawBufferInfo(gl, bufferInfo);
+      }
     }
 
-    waterTranslation[1] = 1;
-    for(let i = 0; i < 10; i++)
-    {
-      waterTranslation  = [1 + 2 * i, 0, z_distance_between_hexagons];
-      waterUniforms.u_matrix = waterUniforms.u_matrix = m4.translate(viewProjectionMatrix, ...waterTranslation);
-
-      twgl.setUniforms(programInfo, waterUniforms);
-      // Draw the geometry
-      twgl.drawBufferInfo(gl, bufferInfo);
-    }
-
-    // when done
     requestAnimationFrame(drawScene);
   }
 }

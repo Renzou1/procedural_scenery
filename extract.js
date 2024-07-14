@@ -296,5 +296,5 @@ async function getObjInfo(objString, gl, programInfo) {
       vao,
     };
   });
-  return objInfo;
+  return objInfo[0];
 }
